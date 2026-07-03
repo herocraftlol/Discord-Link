@@ -1,0 +1,13 @@
+# Compiled files
+target/
+!.target/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db

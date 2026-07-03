@@ -1,0 +1,17 @@
+name: MiniBridge
+version: ${project.version}
+main: fr.herocraft.minibridge.MiniBridge
+api-version: "1.21"
+description: Bridge Discord <-> Minecraft léger sans dépendances lourdes
+authors: [HeroCraft]
+
+commands:
+  minibridge:
+    description: Recharge la config de MiniBridge
+    usage: /minibridge reload
+    permission: minibridge.admin
+
+permissions:
+  minibridge.admin:
+    description: Accès aux commandes d'administration MiniBridge
+    default: op

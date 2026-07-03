@@ -1,0 +1,76 @@
+# ==============================
+#   MiniBridge - Configuration
+# ==============================
+
+# Token de votre bot Discord
+# Créez un bot sur https://discord.com/developers/applications
+# Permissions nécessaires : Send Messages, Read Message History, View Channels
+bot-token: "VOTRE_TOKEN_ICI"
+
+# ID du salon Discord où les messages seront envoyés/lus
+# Clic droit sur le salon > Copier l'identifiant (mode développeur requis)
+channel-id: "VOTRE_CHANNEL_ID_ICI"
+
+# Préfixe pour les commandes depuis Discord (ex: !list, !tps)
+command-prefix: "!"
+
+# ==============================
+#   Messages Minecraft -> Discord
+# ==============================
+messages:
+  # Activer/désactiver chaque type d'événement
+  chat: true
+  join: true
+  quit: true
+  death: true
+  advancement: true
+
+  # Formats des messages envoyés sur Discord
+  # Placeholders : {player}, {message}, {world}, {advancement}
+  format-chat: "💬 **{player}** : {message}"
+  format-join: "✅ **{player}** a rejoint le serveur"
+  format-quit: "❌ **{player}** a quitté le serveur"
+  format-death: "💀 **{player}** est mort : {message}"
+  format-advancement: "🏆 **{player}** a obtenu : **{advancement}**"
+
+  # Message de statut au démarrage/arrêt
+  server-start: "🟢 **Serveur démarré !**"
+  server-stop: "🔴 **Serveur arrêté.**"
+
+# ==============================
+#   Messages Discord -> Minecraft
+# ==============================
+discord-to-minecraft:
+  enabled: true
+  # Format affiché en jeu
+  # Placeholders : {user}, {message}
+  format: "&9[Discord] &f{user}&7: &f{message}"
+
+  # Commandes autorisées depuis Discord (laisser vide pour désactiver)
+  # Seuls les membres avec le rôle admin-role-id peuvent les utiliser
+  commands-enabled: true
+  admin-role-id: "ID_ROLE_ADMIN_DISCORD"
+
+  # Commandes autorisées (sans le préfixe !)
+  allowed-commands:
+    - "list"
+    - "tps"
+    - "time"
+
+# ==============================
+#   Webhook (alternative au bot)
+# ==============================
+# Si vous préférez utiliser un webhook plutôt qu'un bot complet
+# (les webhooks ne peuvent PAS lire les messages Discord -> Minecraft)
+use-webhook: false
+webhook-url: "VOTRE_WEBHOOK_URL_ICI"
+webhook-username: "MiniBridge"
+
+# ==============================
+#   Paramètres avancés
+# ==============================
+# Délai en ms entre chaque envoi de message (anti-spam Discord rate limit)
+send-delay-ms: 100
+
+# Afficher les messages de debug dans la console
+debug: false
