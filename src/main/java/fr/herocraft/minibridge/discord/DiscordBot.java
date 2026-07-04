@@ -1,6 +1,8 @@
 package fr.herocraft.minibridge.discord;
 
 import fr.herocraft.minibridge.MiniBridge;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -18,7 +20,7 @@ import java.util.logging.Level;
 
 /**
  * Bot Discord utilisant l'API HTTP et WebSocket natifs de Java 21.
- * Aucune dépendance externe (pas de JDA) — léger et sans fuite mémoire Netty.
+ * Aucune dependance externe (pas de JDA) — leger et sans fuite memoire Netty.
  */
 public class DiscordBot implements WebSocket.Listener {
 
@@ -36,13 +38,11 @@ public class DiscordBot implements WebSocket.Listener {
     private final HttpClient httpClient;
     private final ScheduledExecutorService scheduler;
 
-    // Gestion du heartbeat Gateway
     private int heartbeatInterval = 45000;
     private ScheduledFuture<?> heartbeatTask;
     private int lastSequence = -1;
     private boolean identified = false;
 
-    // Queue d'envoi pour respecter le rate limit Discord
     private final BlockingQueue<String> sendQueue = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService senderThread;
 
@@ -72,21 +72,15 @@ public class DiscordBot implements WebSocket.Listener {
 
     public boolean start() {
         try {
-            // Récupération de l'URL Gateway
             String gatewayUrl = getGatewayUrl();
             if (gatewayUrl == null) {
-                plugin.getLogger().severe("Impossible de récupérer l'URL Gateway Discord. Token invalide ?");
+                plugin.getLogger().severe("Impossible de recuperer l'URL Gateway Discord. Token invalide ?");
                 return false;
             }
-
-            // Démarrage de la queue d'envoi
             startSendQueue();
-
-            // Connexion WebSocket
             webSocket = httpClient.newWebSocketBuilder()
                     .buildAsync(URI.create(gatewayUrl + "/?v=10&encoding=json"), this)
                     .get(10, TimeUnit.SECONDS);
-
             return true;
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Erreur connexion Gateway Discord", e);
@@ -120,9 +114,8 @@ public class DiscordBot implements WebSocket.Listener {
 
     @Override
     public CompletionStage<?> onClose(WebSocket ws, int statusCode, String reason) {
-        plugin.getLogger().warning("Gateway Discord fermé (code " + statusCode + "): " + reason);
+        plugin.getLogger().warning("Gateway Discord ferme (code " + statusCode + "): " + reason);
         identified = false;
-        // Reconnexion automatique après 5s
         scheduler.schedule(this::reconnect, 5, TimeUnit.SECONDS);
         return null;
     }
@@ -147,10 +140,10 @@ public class DiscordBot implements WebSocket.Listener {
             if (seq instanceof Number) lastSequence = ((Number) seq).intValue();
 
             switch (op) {
-                case 10 -> handleHello(payload); // Hello
-                case 0  -> handleDispatch(payload); // Dispatch
-                case 7  -> reconnect(); // Reconnect
-                case 9  -> { // Invalid session
+                case 10 -> handleHello(payload);
+                case 0  -> handleDispatch(payload);
+                case 7  -> reconnect();
+                case 9  -> {
                     identified = false;
                     scheduler.schedule(this::identify, 3, TimeUnit.SECONDS);
                 }
@@ -165,13 +158,10 @@ public class DiscordBot implements WebSocket.Listener {
         JSONObject d = (JSONObject) payload.get("d");
         heartbeatInterval = ((Number) d.get("heartbeat_interval")).intValue();
 
-        // Démarrage du heartbeat
         if (heartbeatTask != null) heartbeatTask.cancel(false);
         heartbeatTask = scheduler.scheduleAtFixedRate(
                 this::sendHeartbeat, 0, heartbeatInterval, TimeUnit.MILLISECONDS
         );
-
-        // Identification
         identify();
     }
 
@@ -183,7 +173,7 @@ public class DiscordBot implements WebSocket.Listener {
 
         if ("READY".equals(eventName)) {
             identified = true;
-            plugin.getLogger().info("Bot Discord identifié et prêt !");
+            plugin.getLogger().info("Bot Discord identifie et pret !");
         } else if ("MESSAGE_CREATE".equals(eventName)) {
             handleMessageCreate(d);
         }
@@ -191,13 +181,13 @@ public class DiscordBot implements WebSocket.Listener {
 
     @SuppressWarnings("unchecked")
     private void handleMessageCreate(JSONObject message) {
-        // Ignorer les messages du bot lui-même
+        // Ignorer les messages du bot lui-meme
         JSONObject author = (JSONObject) message.get("author");
         if (author == null) return;
         Boolean isBot = (Boolean) author.get("bot");
         if (Boolean.TRUE.equals(isBot)) return;
 
-        // Vérifier que c'est le bon channel
+        // Verifier que c'est le bon channel
         String msgChannelId = (String) message.get("channel_id");
         if (!channelId.equals(msgChannelId)) return;
 
@@ -205,17 +195,31 @@ public class DiscordBot implements WebSocket.Listener {
         String username = (String) author.get("username");
         if (content == null || content.isEmpty()) return;
 
+        if (plugin.isDebug()) {
+            plugin.getLogger().info("[MiniBridge DEBUG] Message recu de " + username + ": " + content);
+        }
+
         // Commandes Discord -> serveur
         if (commandsEnabled && content.startsWith(commandPrefix)) {
             String cmd = content.substring(commandPrefix.length()).trim().toLowerCase();
 
-            // Vérification du rôle admin
+            // Verification du role admin — FIX: iteration manuelle au lieu de .contains()
             if (!adminRoleId.isEmpty()) {
-                JSONArray roles = (JSONArray) message.get("member") != null
-                        ? (JSONArray) ((JSONObject) message.get("member")).get("roles")
-                        : new JSONArray();
-                if (roles == null || !roles.contains(adminRoleId)) {
-                    sendMessage("❌ Vous n'avez pas la permission d'utiliser les commandes.");
+                JSONObject member = (JSONObject) message.get("member");
+                JSONArray roles = (member != null) ? (JSONArray) member.get("roles") : null;
+
+                boolean hasRole = false;
+                if (roles != null) {
+                    for (Object roleObj : roles) {
+                        if (adminRoleId.equals(String.valueOf(roleObj))) {
+                            hasRole = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasRole) {
+                    sendMessage("Vous n'avez pas la permission d'utiliser les commandes.");
                     return;
                 }
             }
@@ -223,23 +227,32 @@ public class DiscordBot implements WebSocket.Listener {
             if (allowedCommands.contains(cmd)) {
                 executeCommand(cmd, username);
             } else {
-                sendMessage("❌ Commande non autorisée. Commandes disponibles : `"
-                        + String.join("`, `", allowedCommands) + "`");
+                sendMessage("Commande non autorisee. Commandes disponibles : "
+                        + String.join(", ", allowedCommands));
             }
             return;
         }
 
-        // Message normal Discord -> Minecraft
+        // Message normal Discord -> Minecraft — FIX: utilisation de l'API Adventure Paper
         if (plugin.getConfig().getBoolean("discord-to-minecraft.enabled", true)) {
+            String format = plugin.getConfig().getString(
+                    "discord-to-minecraft.format", "&9[Discord] &f{user}&7: &f{message}");
+            String formatted = format
+                    .replace("{user}", username)
+                    .replace("{message}", content);
+
+            // Conversion Adventure (Paper 1.21)
+            Component component = LegacyComponentSerializer.legacyAmpersand().deserialize(formatted);
+
             Bukkit.getScheduler().runTask(plugin, () ->
-                    plugin.sendToMinecraft(username, content)
+                    Bukkit.getServer().sendMessage(component)
             );
         }
     }
 
     private void executeCommand(String cmd, String discordUser) {
         Bukkit.getScheduler().runTask(plugin, () -> {
-            plugin.getLogger().info("[MiniBridge] Commande exécutée par Discord (" + discordUser + "): " + cmd);
+            plugin.getLogger().info("[MiniBridge] Commande Discord de " + discordUser + ": " + cmd);
             switch (cmd) {
                 case "list" -> {
                     int online = Bukkit.getOnlinePlayers().size();
@@ -248,20 +261,20 @@ public class DiscordBot implements WebSocket.Listener {
                             .map(p -> p.getName())
                             .reduce((a, b) -> a + ", " + b)
                             .orElse("aucun");
-                    sendMessage("👥 **Joueurs en ligne (" + online + "/" + max + "):** " + names);
+                    sendMessage("Joueurs en ligne (" + online + "/" + max + "): " + names);
                 }
                 case "tps" -> {
                     double[] tps = Bukkit.getServer().getTPS();
-                    sendMessage(String.format("⚡ **TPS:** 1m: %.1f | 5m: %.1f | 15m: %.1f",
+                    sendMessage(String.format("TPS: 1m: %.1f | 5m: %.1f | 15m: %.1f",
                             tps[0], tps[1], tps[2]));
                 }
                 case "time" -> {
                     long time = Bukkit.getWorlds().get(0).getTime();
-                    String period = (time >= 0 && time < 12300) ? "☀️ Jour"
-                            : (time < 13800) ? "🌅 Coucher"
-                            : (time < 22200) ? "🌙 Nuit"
-                            : "🌄 Lever";
-                    sendMessage("🕐 **Temps:** " + time + " ticks — " + period);
+                    String period = (time >= 0 && time < 12300) ? "Jour"
+                            : (time < 13800) ? "Coucher de soleil"
+                            : (time < 22200) ? "Nuit"
+                            : "Lever de soleil";
+                    sendMessage("Temps: " + time + " ticks - " + period);
                 }
             }
         });
@@ -315,7 +328,7 @@ public class DiscordBot implements WebSocket.Listener {
                         .get(10, TimeUnit.SECONDS);
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Reconnexion échouée, nouvel essai dans 30s", e);
+            plugin.getLogger().log(Level.WARNING, "Reconnexion echouee, nouvel essai dans 30s", e);
             scheduler.schedule(this::reconnect, 30, TimeUnit.SECONDS);
         }
     }
@@ -348,7 +361,6 @@ public class DiscordBot implements WebSocket.Listener {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            // Échappement JSON minimal
             String escaped = content
                     .replace("\\", "\\\\")
                     .replace("\"", "\\\"")
@@ -360,16 +372,15 @@ public class DiscordBot implements WebSocket.Listener {
             }
 
             int code = conn.getResponseCode();
-            if (code == 429) { // Rate limited
+            if (code == 429) {
+                sendQueue.offer(content); // Remettre en queue si rate limited
+                if (plugin.isDebug()) plugin.getLogger().warning("Rate limited par Discord");
+            } else if (code >= 400 && plugin.isDebug()) {
                 InputStream errStream = conn.getErrorStream();
                 if (errStream != null) {
-                    String response = new String(errStream.readAllBytes(), StandardCharsets.UTF_8);
-                    if (plugin.isDebug()) plugin.getLogger().warning("Rate limited par Discord: " + response);
+                    String err = new String(errStream.readAllBytes(), StandardCharsets.UTF_8);
+                    plugin.getLogger().warning("Discord API erreur " + code + ": " + err);
                 }
-                // Remettre dans la queue
-                sendQueue.offer(content);
-            } else if (code >= 400 && plugin.isDebug()) {
-                plugin.getLogger().warning("Discord API erreur " + code + " pour le message: " + content);
             }
             conn.disconnect();
         } catch (Exception e) {
@@ -395,7 +406,7 @@ public class DiscordBot implements WebSocket.Listener {
             JSONObject json = (JSONObject) parser.parse(response);
             return (String) json.get("url");
         } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Erreur récupération Gateway URL", e);
+            plugin.getLogger().log(Level.WARNING, "Erreur recuperation Gateway URL", e);
             return null;
         }
     }

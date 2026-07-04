@@ -91,12 +91,27 @@ Le jar final se trouve dans `target/MiniBridge-1.0.0.jar`.
 
 ---
 
-## 📥 Download
-
-Téléchargez la dernière version : [MiniBridge v1.0.0](https://github.com/herocraftlol/Discord-Link/releases/latest)
-
----
-
 ## Pourquoi pas JDA ?
 
 JDA utilise Netty pour les WebSockets, ce qui peut causer des fuites de direct memory (exactement le problème que vous rencontrez avec DiscordSRV). MiniBridge utilise le **client HTTP natif de Java 21** (`java.net.http.WebSocket`) — zéro dépendance réseau externe.
+
+---
+
+## 📥 Download
+
+Téléchargez la dernière version : [MiniBridge v1.0.1](https://github.com/herocraftlol/Discord-Link/releases/latest)
+
+---
+
+## Configuration du rôle admin
+
+Pour utiliser les commandes Discord (`!list`, `!tps`, `!time`), vous devez spécifier l'ID du rôle admin dans `config.yml` :
+
+1. **Activer le Mode Développeur** : Paramètres Discord → Avancés → Mode Développeur
+2. **Clic droit sur le rôle** → Copier l'identifiant
+3. Dans `config.yml` :
+```yaml
+admin-role-id: "1234567890123456789"
+```
+
+Si vous laissez `admin-role-id` vide, les commandes seront désactivées.
