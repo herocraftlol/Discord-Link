@@ -187,17 +187,21 @@ public class DiscordBot implements WebSocket.Listener {
         Boolean isBot = (Boolean) author.get("bot");
         if (Boolean.TRUE.equals(isBot)) return;
 
-        // Verifier que c'est le bon channel
         String msgChannelId = (String) message.get("channel_id");
-        if (!channelId.equals(msgChannelId)) return;
-
         String content = (String) message.get("content");
         String username = (String) author.get("username");
-        if (content == null || content.isEmpty()) return;
 
+        // Log avant tout filtre pour diagnostiquer
         if (plugin.isDebug()) {
-            plugin.getLogger().info("[MiniBridge DEBUG] Message recu de " + username + ": " + content);
+            plugin.getLogger().info("[MiniBridge DEBUG] MESSAGE_CREATE de=" + username
+                    + " channel=" + msgChannelId + " (attendu=" + channelId + ")"
+                    + " contenu=" + content);
         }
+
+        // Verifier que c'est le bon channel
+        if (!channelId.equals(msgChannelId)) return;
+
+        if (content == null || content.isEmpty()) return;
 
         // Commandes Discord -> serveur
         if (commandsEnabled && content.startsWith(commandPrefix)) {
@@ -291,7 +295,7 @@ public class DiscordBot implements WebSocket.Listener {
 
         JSONObject d = new JSONObject();
         d.put("token", token);
-        d.put("intents", 33280); // GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
+        d.put("intents", 33793); // GUILDS (1) + GUILD_MESSAGES (512) + MESSAGE_CONTENT (32768)
 
         JSONObject properties = new JSONObject();
         properties.put("os", "linux");
