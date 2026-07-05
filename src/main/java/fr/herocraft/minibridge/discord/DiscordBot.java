@@ -139,17 +139,26 @@ public class DiscordBot implements WebSocket.Listener {
             Object seq = payload.get("s");
             if (seq instanceof Number) lastSequence = ((Number) seq).intValue();
 
+            // Log tous les opcodes recus pour diagnostiquer
+            plugin.getLogger().info("[MiniBridge DEBUG] Gateway op=" + op
+                    + (payload.get("t") != null ? " t=" + payload.get("t") : ""));
+
             switch (op) {
                 case 10 -> handleHello(payload);
                 case 0  -> handleDispatch(payload);
                 case 7  -> reconnect();
                 case 9  -> {
+                    // Op 9 = Invalid Session — Discord a rejete notre identification
+                    JSONObject d9 = (JSONObject) payload.get("d");
+                    plugin.getLogger().severe("[MiniBridge] Session invalide (op=9)! "
+                            + "Verifiez votre bot-token et les intents sur le portail Discord. "
+                            + "Resumable=" + d9);
                     identified = false;
-                    scheduler.schedule(this::identify, 3, TimeUnit.SECONDS);
+                    scheduler.schedule(this::identify, 5, TimeUnit.SECONDS);
                 }
             }
         } catch (Exception e) {
-            if (plugin.isDebug()) plugin.getLogger().log(Level.WARNING, "Erreur parsing Gateway", e);
+            plugin.getLogger().log(Level.WARNING, "[MiniBridge] Erreur parsing Gateway: " + e.getMessage(), e);
         }
     }
 

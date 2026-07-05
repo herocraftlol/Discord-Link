@@ -91,9 +91,15 @@ Le jar final se trouve dans `target/MiniBridge-1.0.0.jar`.
 
 ---
 
+## Pourquoi pas JDA ?
+
+JDA utilise Netty pour les WebSockets, ce qui peut causer des fuites de direct memory (exactement le problème que vous rencontrez avec DiscordSRV). MiniBridge utilise le **client HTTP natif de Java 21** (`java.net.http.WebSocket`) — zéro dépendance réseau externe.
+
+---
+
 ## 📥 Download
 
-Téléchargez la dernière version : [MiniBridge v1.0.2](https://github.com/herocraftlol/Discord-Link/releases/latest)
+Téléchargez la dernière version : [MiniBridge v1.0.3](https://github.com/herocraftlol/Discord-Link/releases/latest)
 
 ---
 
@@ -109,9 +115,3 @@ admin-role-id: "1234567890123456789"
 ```
 
 Si vous laissez `admin-role-id` vide, les commandes seront désactivées.
-
----
-
-## Pourquoi pas JDA ?
-
-JDA utilise Netty pour les WebSockets, ce qui peut causer des fuites de direct memory (exactement le problème que vous rencontrez avec DiscordSRV). MiniBridge utilise le **client HTTP natif de Java 21** (`java.net.http.WebSocket`) — zéro dépendance réseau externe.
