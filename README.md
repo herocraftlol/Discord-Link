@@ -1,9 +1,5 @@
 # MiniBridge 🌉
 
-[![GitHub Release](https://img.shields.io/github/v/release/herocraftlol/Discord-Link)](https://github.com/herocraftlol/Discord-Link/releases)
-[![Java Version](https://img.shields.io/badge/Java-21-blue)](https://www.java.com/)
-[![Paper Version](https://img.shields.io/badge/Paper-1.21-green)](https://papermc.io/)
-
 Plugin léger **Paper 1.21** pour relier votre serveur Minecraft à Discord.  
 **Aucune dépendance externe** — pas de JDA, pas de fuite mémoire Netty.
 
@@ -94,24 +90,3 @@ Le jar final se trouve dans `target/MiniBridge-1.0.0.jar`.
 ## Pourquoi pas JDA ?
 
 JDA utilise Netty pour les WebSockets, ce qui peut causer des fuites de direct memory (exactement le problème que vous rencontrez avec DiscordSRV). MiniBridge utilise le **client HTTP natif de Java 21** (`java.net.http.WebSocket`) — zéro dépendance réseau externe.
-
----
-
-## 📥 Download
-
-Téléchargez la dernière version : [MiniBridge v1.0.3](https://github.com/herocraftlol/Discord-Link/releases/latest)
-
----
-
-## Configuration du rôle admin
-
-Pour utiliser les commandes Discord (`!list`, `!tps`, `!time`), vous devez spécifier l'ID du rôle admin dans `config.yml` :
-
-1. **Activer le Mode Développeur** : Paramètres Discord → Avancés → Mode Développeur
-2. **Clic droit sur le rôle** → Copier l'identifiant
-3. Dans `config.yml` :
-```yaml
-admin-role-id: "1234567890123456789"
-```
-
-Si vous laissez `admin-role-id` vide, les commandes seront désactivées.

@@ -169,9 +169,10 @@ public class DiscordBot implements WebSocket.Listener {
 
         if (heartbeatTask != null) heartbeatTask.cancel(false);
         heartbeatTask = scheduler.scheduleAtFixedRate(
-                this::sendHeartbeat, 0, heartbeatInterval, TimeUnit.MILLISECONDS
+                this::sendHeartbeat, heartbeatInterval, heartbeatInterval, TimeUnit.MILLISECONDS
         );
-        identify();
+        // Delai de 500ms pour laisser le WebSocket etre completement pret
+        scheduler.schedule(this::identify, 500, TimeUnit.MILLISECONDS);
     }
 
     @SuppressWarnings("unchecked")
@@ -299,6 +300,7 @@ public class DiscordBot implements WebSocket.Listener {
 
     @SuppressWarnings("unchecked")
     private void identify() {
+        plugin.getLogger().info("[MiniBridge DEBUG] Envoi Identify (op=2)...");
         JSONObject payload = new JSONObject();
         payload.put("op", 2);
 
@@ -313,7 +315,13 @@ public class DiscordBot implements WebSocket.Listener {
         d.put("properties", properties);
 
         payload.put("d", d);
-        sendRaw(payload.toJSONString());
+
+        try {
+            webSocket.sendText(payload.toJSONString(), true).get(5, TimeUnit.SECONDS);
+            plugin.getLogger().info("[MiniBridge DEBUG] Identify envoye avec succes.");
+        } catch (Exception e) {
+            plugin.getLogger().severe("[MiniBridge] Echec envoi Identify: " + e.getMessage());
+        }
     }
 
     @SuppressWarnings("unchecked")
