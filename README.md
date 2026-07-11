@@ -1,9 +1,16 @@
 # MiniBridge 🌉
 
-Plugin léger **Paper 1.21** pour relier votre serveur Minecraft à Discord.  
+**Plugin Minecraft-Discord bridge pour Paper 1.21**
+
+[![Version](https://img.shields.io/github/v/release/herocraftlol/Discord-Link?include_prereleases&label=version)](https://github.com/herocraftlol/Discord-Link/releases)
+[![Java](https://img.shields.io/badge/java-21-blue.svg)](https://www.java.com/)
+
+Plugin léger pour relier votre serveur Minecraft à Discord.  
 **Aucune dépendance externe** — pas de JDA, pas de fuite mémoire Netty.
 
----
+## 📥 Téléchargement
+
+Téléchargez la dernière version sur la [page des releases](https://github.com/herocraftlol/Discord-Link/releases).
 
 ## Fonctionnalités
 
