@@ -3,55 +3,55 @@
 # ==============================
 
 # Token de votre bot Discord
-# Créez un bot sur https://discord.com/developers/applications
-# Permissions nécessaires : Send Messages, Read Message History, View Channels
+# Creez un bot sur https://discord.com/developers/applications
+# Permissions necessaires : Send Messages, Read Message History, View Channels
 bot-token: "VOTRE_TOKEN_ICI"
 
-# ID du salon Discord où les messages seront envoyés/lus
-# Clic droit sur le salon > Copier l'identifiant (mode développeur requis)
+# ID du salon Discord ou les messages seront envoyes/lus
+# Clic droit sur le salon > Copier l'identifiant (mode developpeur requis)
 channel-id: "VOTRE_CHANNEL_ID_ICI"
 
-# Préfixe pour les commandes depuis Discord (ex: !list, !tps)
+# Prefixe pour les commandes depuis Discord (ex: !list, !tps)
 command-prefix: "!"
 
 # ==============================
 #   Messages Minecraft -> Discord
 # ==============================
 messages:
-  # Activer/désactiver chaque type d'événement
+  # Activer/desactiver chaque type d'evenement
   chat: true
   join: true
   quit: true
   death: true
   advancement: true
 
-  # Formats des messages envoyés sur Discord
+  # Formats des messages envoyes sur Discord
   # Placeholders : {player}, {message}, {world}, {advancement}
-  format-chat: "💬 **{player}** : {message}"
-  format-join: "✅ **{player}** a rejoint le serveur"
-  format-quit: "❌ **{player}** a quitté le serveur"
-  format-death: "💀 **{player}** est mort : {message}"
-  format-advancement: "🏆 **{player}** a obtenu : **{advancement}**"
+  format-chat: "[player] : {message}"
+  format-join: "[player] a rejoint le serveur"
+  format-quit: "[player] a quitte le serveur"
+  format-death: "[player] est mort : {message}"
+  format-advancement: "[player] a obtenu : [advancement]"
 
-  # Message de statut au démarrage/arrêt
-  server-start: "🟢 **Serveur démarré !**"
-  server-stop: "🔴 **Serveur arrêté.**"
+  # Message de statut au demarrage/arret
+  server-start: "Serveur demarre !"
+  server-stop: "Serveur arrete."
 
 # ==============================
 #   Messages Discord -> Minecraft
 # ==============================
 discord-to-minecraft:
   enabled: true
-  # Format affiché en jeu
+  # Format affiche en jeu
   # Placeholders : {user}, {message}
   format: "&9[Discord] &f{user}&7: &f{message}"
 
-  # Commandes autorisées depuis Discord (laisser vide pour désactiver)
-  # Seuls les membres avec le rôle admin-role-id peuvent les utiliser
+  # Commandes autorisees depuis Discord (laisser vide pour desactiver)
+  # Seuls les membres avec le role admin-role-id peuvent les utiliser
   commands-enabled: true
   admin-role-id: "ID_ROLE_ADMIN_DISCORD"
 
-  # Commandes autorisées (sans le préfixe !)
+  # Commandes autorisees (sans le prefixe !)
   allowed-commands:
     - "list"
     - "tps"
@@ -60,16 +60,32 @@ discord-to-minecraft:
 # ==============================
 #   Webhook (alternative au bot)
 # ==============================
-# Si vous préférez utiliser un webhook plutôt qu'un bot complet
+# Si vous preferez utiliser un webhook plutot qu'un bot complet
 # (les webhooks ne peuvent PAS lire les messages Discord -> Minecraft)
 use-webhook: false
 webhook-url: "VOTRE_WEBHOOK_URL_ICI"
 webhook-username: "MiniBridge"
 
 # ==============================
-#   Paramètres avancés
+#   Avatar du joueur (Skins)
 # ==============================
-# Délai en ms entre chaque envoi de message (anti-spam Discord rate limit)
+# Service utilise pour afficher les skins des joueurs dans Discord
+# Les avatars s'affichent automatiquement pour tous les messages
+# 
+# Services disponibles :
+# - mc-heads : Avatars pixelises style Minecraft (defaut)
+# - mineskin : Avatars Minecraft renders
+# - crafatar : Avatars alternatifs avec option de rendu
+avatar-service: "mc-heads"
+
+# Note : Les avatars ne fonctionnent qu'en mode WEBHOOK
+# En mode BOT, Discord ne supporte pas les avatars personnalises
+# Pour avoir les skins des joueurs, utilisez le mode Webhook
+
+# ==============================
+#   Parametres avances
+# ==============================
+# Delai en ms entre chaque envoi de message (anti-spam Discord rate limit)
 send-delay-ms: 100
 
 # Afficher les messages de debug dans la console

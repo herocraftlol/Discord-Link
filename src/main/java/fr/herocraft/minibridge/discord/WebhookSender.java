@@ -33,6 +33,16 @@ public class WebhookSender {
     }
 
     public void send(String content) {
+        send(username, null, content);
+    }
+
+    /**
+     * Envoie un message avec un avatar personnalise
+     * @param displayName Nom affiche dans Discord
+     * @param avatarUrl URL de l'image de l'avatar (optionnel)
+     * @param content Contenu du message
+     */
+    public void send(String displayName, String avatarUrl, String content) {
         executor.submit(() -> {
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(webhookUrl).openConnection();
@@ -48,7 +58,14 @@ public class WebhookSender {
                         .replace("\"", "\\\"")
                         .replace("\n", "\\n");
 
-                String body = "{\"username\":\"" + username + "\",\"content\":\"" + escaped + "\"}";
+                // Construction du JSON avec avatar si fourni
+                String body;
+                if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                    body = "{\"username\":\"" + escapeJson(displayName) + "\",\"avatar_url\":\"" + avatarUrl + "\",\"content\":\"" + escaped + "\"}";
+                } else {
+                    body = "{\"username\":\"" + escapeJson(displayName) + "\",\"content\":\"" + escaped + "\"}";
+                }
+                
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                 }
@@ -62,6 +79,16 @@ public class WebhookSender {
                 if (plugin.isDebug()) plugin.getLogger().log(Level.WARNING, "Erreur webhook", e);
             }
         });
+    }
+
+    private String escapeJson(String input) {
+        if (input == null) return "";
+        return input
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     public void shutdown() {

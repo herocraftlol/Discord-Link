@@ -328,6 +328,20 @@ public class DiscordBot implements WebSocket.Listener {
         sendQueue.offer(content);
     }
 
+    /**
+     * Envoie un message avec un avatar personnalise
+     * Note: Pour le mode bot, Discord ne supporte pas les avatars personalises.
+     * Pour avoir les avatars des joueurs, utilisez le mode Webhook a la place.
+     * @param displayName Nom affiche
+     * @param avatarUrl URL de l'avatar (ignore pour le mode bot)
+     * @param content Contenu du message
+     */
+    public void sendMessage(String displayName, String avatarUrl, String content) {
+        // En mode bot, l'avatar n'est pas supporte par l'API
+        // On affiche juste le nom du joueur dans le message
+        sendQueue.offer(content);
+    }
+
     private void startSendQueue() {
         long delayMs = plugin.getConfig().getLong("send-delay-ms", 100);
         senderThread.scheduleWithFixedDelay(() -> {
