@@ -54,6 +54,35 @@ Téléchargez la dernière version sur la [page des releases](https://github.com
 - **Configuration YAML** — Facile à modifier et à étendre
 - **Reload à chaud** — `/minibridge reload` sans redémarrer le serveur
 
+### 🖼️ Affichage des skins des joueurs
+
+> **NOUVEAU !** MiniBridge peut désormais afficher les **skins Minecraft** des joueurs comme avatars Discord !
+
+Tous les messages (chat, join, quit, death, advancement) affichent automatiquement le skin du joueur.
+
+#### Services disponibles
+
+| Service | Style | URL |
+|---|---|---|
+| **mc-heads.net** (défaut) | Avatar pixelisé Minecraft | https://mc-heads.net |
+| **mineskin.eu** | Render 3D du skin | https://mineskin.eu |
+| **crafatar.com** | Avatars alternatifs | https://crafatar.com |
+
+#### Configuration
+
+Dans `config.yml`, ajoutez :
+
+```yaml
+# Mode Webhook requis pour les skins
+use-webhook: true
+webhook-url: "VOTRE_WEBHOOK_URL"
+
+# Service d'avatar (optionnel, défaut: mc-heads)
+avatar-service: "mc-heads"
+```
+
+> ⚠️ **Note** : Les avatars ne fonctionnent qu'en mode Webhook. Discord ne permet pas les avatars personnalisés pour les messages de bots.
+
 ---
 
 ## 🚀 Installation pas à pas
