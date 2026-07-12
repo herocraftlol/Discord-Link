@@ -42,8 +42,11 @@ public class DiscordBot implements WebSocket.Listener {
     private int lastSequence = -1;
     private boolean identified = false;
 
-    // Queue d'envoi pour respecter le rate limit Discord
-    private final BlockingQueue<String> sendQueue = new LinkedBlockingQueue<>();
+    // Queue d'envoi pour respecter le rate limit Discord (payloads JSON complets : contenu ou embed)
+    private final BlockingQueue<JSONObject> sendQueue = new LinkedBlockingQueue<>();
+    // Queue séparée pour le channel console (log serveur), pour ne pas polluer le channel principal
+    private final BlockingQueue<JSONObject> consoleSendQueue = new LinkedBlockingQueue<>();
+    private final String consoleChannelId;
     private final ScheduledExecutorService senderThread;
 
     public DiscordBot(MiniBridge plugin) {
@@ -54,6 +57,7 @@ public class DiscordBot implements WebSocket.Listener {
         this.adminRoleId = plugin.getConfig().getString("discord-to-minecraft.admin-role-id", "");
         this.allowedCommands = plugin.getConfig().getStringList("discord-to-minecraft.allowed-commands");
         this.commandPrefix = plugin.getConfig().getString("command-prefix", "!");
+        this.consoleChannelId = plugin.getConfig().getString("console.channel-id", "");
 
         this.httpClient = HttpClient.newBuilder()
                 .executor(Executors.newVirtualThreadPerTaskExecutor())
@@ -325,34 +329,75 @@ public class DiscordBot implements WebSocket.Listener {
     // ========================
 
     public void sendMessage(String content) {
-        sendQueue.offer(content);
+        JSONObject payload = new JSONObject();
+        payload.put("content", content);
+        sendQueue.offer(payload);
     }
 
     /**
-     * Envoie un message avec un avatar personnalise
-     * Note: Pour le mode bot, Discord ne supporte pas les avatars personalises.
-     * Pour avoir les avatars des joueurs, utilisez le mode Webhook a la place.
-     * @param displayName Nom affiche
-     * @param avatarUrl URL de l'avatar (ignore pour le mode bot)
-     * @param content Contenu du message
+     * Envoie un message vers le channel console dédié (log serveur).
+     * Ignoré silencieusement si console.channel-id n'est pas configuré.
      */
-    public void sendMessage(String displayName, String avatarUrl, String content) {
-        // En mode bot, l'avatar n'est pas supporte par l'API
-        // On affiche juste le nom du joueur dans le message
-        sendQueue.offer(content);
+    public void sendConsoleMessage(String content) {
+        if (consoleChannelId == null || consoleChannelId.isEmpty()) return;
+        JSONObject payload = new JSONObject();
+        payload.put("content", content);
+        consoleSendQueue.offer(payload);
+    }
+
+    /**
+     * Envoie un embed Discord (utilisé pour afficher le skin d'un joueur : connexion, chat, mort...).
+     *
+     * @param authorName   nom affiché en tête de l'embed (avec petite icône), peut être null (ex: pour un join)
+     * @param authorIconUrl URL de l'icône affichée à côté de authorName, peut être null
+     * @param description  texte de l'embed (supporte le markdown Discord, ex: **gras**)
+     * @param thumbnailUrl URL de l'image affichée en grande vignette (ex: tête du skin du joueur), peut être null
+     * @param color        couleur de la barre latérale de l'embed (format décimal, ex: 0x57F287)
+     */
+    @SuppressWarnings("unchecked")
+    public void sendEmbed(String authorName, String authorIconUrl, String description, String thumbnailUrl, int color) {
+        JSONObject embed = new JSONObject();
+        if (description != null && !description.isEmpty()) embed.put("description", description);
+        embed.put("color", color);
+
+        if (authorName != null && !authorName.isEmpty()) {
+            JSONObject author = new JSONObject();
+            author.put("name", authorName);
+            if (authorIconUrl != null && !authorIconUrl.isEmpty()) author.put("icon_url", authorIconUrl);
+            embed.put("author", author);
+        }
+
+        if (thumbnailUrl != null && !thumbnailUrl.isEmpty()) {
+            JSONObject thumbnail = new JSONObject();
+            thumbnail.put("url", thumbnailUrl);
+            embed.put("thumbnail", thumbnail);
+        }
+
+        JSONArray embeds = new JSONArray();
+        embeds.add(embed);
+
+        JSONObject payload = new JSONObject();
+        payload.put("embeds", embeds);
+        sendQueue.offer(payload);
     }
 
     private void startSendQueue() {
         long delayMs = plugin.getConfig().getLong("send-delay-ms", 100);
         senderThread.scheduleWithFixedDelay(() -> {
-            String msg = sendQueue.poll();
-            if (msg != null) sendMessageNow(msg);
+            JSONObject msg = sendQueue.poll();
+            if (msg != null) sendMessageNow(channelId, msg, sendQueue);
+        }, 0, delayMs, TimeUnit.MILLISECONDS);
+
+        // Deuxième file dédiée au channel console (indépendante du rate-limit du channel principal)
+        senderThread.scheduleWithFixedDelay(() -> {
+            JSONObject msg = consoleSendQueue.poll();
+            if (msg != null) sendMessageNow(consoleChannelId, msg, consoleSendQueue);
         }, 0, delayMs, TimeUnit.MILLISECONDS);
     }
 
-    private void sendMessageNow(String content) {
+    private void sendMessageNow(String targetChannelId, JSONObject payload, BlockingQueue<JSONObject> requeueTarget) {
         try {
-            String url = API_BASE + "/channels/" + channelId + "/messages";
+            String url = API_BASE + "/channels/" + targetChannelId + "/messages";
             HttpURLConnection conn = (HttpURLConnection) new java.net.URL(url).openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Authorization", "Bot " + token);
@@ -362,13 +407,7 @@ public class DiscordBot implements WebSocket.Listener {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            // Échappement JSON minimal
-            String escaped = content
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n");
-
-            String body = "{\"content\":\"" + escaped + "\"}";
+            String body = payload.toJSONString();
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.getBytes(StandardCharsets.UTF_8));
             }
@@ -380,14 +419,18 @@ public class DiscordBot implements WebSocket.Listener {
                     String response = new String(errStream.readAllBytes(), StandardCharsets.UTF_8);
                     if (plugin.isDebug()) plugin.getLogger().warning("Rate limited par Discord: " + response);
                 }
-                // Remettre dans la queue
-                sendQueue.offer(content);
-            } else if (code >= 400 && plugin.isDebug()) {
-                plugin.getLogger().warning("Discord API erreur " + code + " pour le message: " + content);
+                // Remettre dans la queue d'origine
+                requeueTarget.offer(payload);
+            } else if (code >= 400) {
+                String response = "";
+                InputStream errStream = conn.getErrorStream();
+                if (errStream != null) response = new String(errStream.readAllBytes(), StandardCharsets.UTF_8);
+                plugin.getLogger().warning("Discord API erreur " + code + " sur channel " + targetChannelId + " : " + response);
             }
             conn.disconnect();
         } catch (Exception e) {
-            if (plugin.isDebug()) plugin.getLogger().log(Level.WARNING, "Erreur envoi Discord", e);
+            plugin.getLogger().warning("Impossible de contacter Discord (bot) : " + e);
+            if (plugin.isDebug()) plugin.getLogger().log(Level.WARNING, "Erreur envoi Discord (détail)", e);
         }
     }
 

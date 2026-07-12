@@ -3,90 +3,123 @@
 # ==============================
 
 # Token de votre bot Discord
-# Creez un bot sur https://discord.com/developers/applications
-# Permissions necessaires : Send Messages, Read Message History, View Channels
+# Créez un bot sur https://discord.com/developers/applications
+# Permissions nécessaires : Send Messages, Read Message History, View Channels
 bot-token: "VOTRE_TOKEN_ICI"
 
-# ID du salon Discord ou les messages seront envoyes/lus
-# Clic droit sur le salon > Copier l'identifiant (mode developpeur requis)
+# ID du salon Discord où les messages seront envoyés/lus
+# Clic droit sur le salon > Copier l'identifiant (mode développeur requis)
 channel-id: "VOTRE_CHANNEL_ID_ICI"
 
-# Prefixe pour les commandes depuis Discord (ex: !list, !tps)
+# Préfixe pour les commandes depuis Discord (ex: !list, !tps)
 command-prefix: "!"
 
 # ==============================
 #   Messages Minecraft -> Discord
 # ==============================
 messages:
-  # Activer/desactiver chaque type d'evenement
+  # Activer/désactiver chaque type d'événement
   chat: true
   join: true
   quit: true
   death: true
   advancement: true
 
-  # Formats des messages envoyes sur Discord
-  # Placeholders : {player}, {message}, {world}, {advancement}
-  format-chat: "[player] : {message}"
-  format-join: "[player] a rejoint le serveur"
-  format-quit: "[player] a quitte le serveur"
-  format-death: "[player] est mort : {message}"
-  format-advancement: "[player] a obtenu : [advancement]"
+  # Afficher la tête du skin du joueur (via skins.avatar-url) dans un embed
+  # Discord lors de la connexion, au lieu d'un simple message texte.
+  # Fonctionne en mode bot ET en mode webhook.
+  join-avatar: true
 
-  # Message de statut au demarrage/arret
-  server-start: "Serveur demarre !"
-  server-stop: "Serveur arrete."
+  # Afficher la tête du skin du joueur sur les messages de chat.
+  # Mode webhook : le message apparaît avec le pseudo et l'avatar du joueur (le plus joli).
+  # Mode bot     : envoyé en embed avec une petite icône à côté du pseudo (un bot ne peut
+  #                pas changer d'avatar par message).
+  chat-avatar: true
+
+  # Formats des messages envoyés sur Discord
+  # Placeholders : {player}, {message}, {world}, {advancement}
+  format-chat: "💬 **{player}** : {message}"
+  format-join: "✅ **{player}** a rejoint le serveur"
+  format-quit: "❌ **{player}** a quitté le serveur"
+  format-death: "💀 **{player}** est mort : {message}"
+  format-advancement: "🏆 **{player}** a obtenu : **{advancement}**"
+
+  # Message de statut au démarrage/arrêt
+  server-start: "🟢 **Serveur démarré !**"
+  server-stop: "🔴 **Serveur arrêté.**"
 
 # ==============================
 #   Messages Discord -> Minecraft
 # ==============================
 discord-to-minecraft:
   enabled: true
-  # Format affiche en jeu
+  # Format affiché en jeu
   # Placeholders : {user}, {message}
   format: "&9[Discord] &f{user}&7: &f{message}"
 
-  # Commandes autorisees depuis Discord (laisser vide pour desactiver)
-  # Seuls les membres avec le role admin-role-id peuvent les utiliser
+  # Commandes autorisées depuis Discord (laisser vide pour désactiver)
+  # Seuls les membres avec le rôle admin-role-id peuvent les utiliser
   commands-enabled: true
   admin-role-id: "ID_ROLE_ADMIN_DISCORD"
 
-  # Commandes autorisees (sans le prefixe !)
+  # Commandes autorisées (sans le préfixe !)
   allowed-commands:
     - "list"
     - "tps"
     - "time"
 
 # ==============================
+#   Skins des joueurs (avatar)
+# ==============================
+skins:
+  # URL utilisée pour récupérer la tête du skin d'un joueur (placeholder {player}).
+  # mc-heads.net fonctionne directement avec le pseudo, pas besoin d'UUID.
+  # Alternatives possibles : https://minotar.net/avatar/{player}/100
+  #                           https://crafatar.com/avatars/{player}?size=100&overlay
+  avatar-url: "https://mc-heads.net/avatar/{player}/100"
+
+  # Couleur de la barre latérale de l'embed (hexadécimal, sans #)
+  embed-color: "57F287"
+
+# ==============================
 #   Webhook (alternative au bot)
 # ==============================
-# Si vous preferez utiliser un webhook plutot qu'un bot complet
+# Si vous préférez utiliser un webhook plutôt qu'un bot complet
 # (les webhooks ne peuvent PAS lire les messages Discord -> Minecraft)
 use-webhook: false
 webhook-url: "VOTRE_WEBHOOK_URL_ICI"
 webhook-username: "MiniBridge"
 
 # ==============================
-#   Avatar du joueur (Skins)
+#   Channel console (logs serveur)
 # ==============================
-# Service utilise pour afficher les skins des joueurs dans Discord
-# Les avatars s'affichent automatiquement pour tous les messages
-# 
-# Services disponibles :
-# - mc-heads : Avatars pixelises style Minecraft (defaut)
-# - mineskin : Avatars Minecraft renders
-# - crafatar : Avatars alternatifs avec option de rendu
-avatar-service: "mc-heads"
+console:
+  # Relayer les logs de la console serveur vers un channel Discord dédié
+  enabled: false
 
-# Note : Les avatars ne fonctionnent qu'en mode WEBHOOK
-# En mode BOT, Discord ne supporte pas les avatars personnalises
-# Pour avoir les skins des joueurs, utilisez le mode Webhook
+  # Mode bot uniquement : ID du salon Discord dédié aux logs (différent de channel-id)
+  channel-id: ""
+
+  # Mode webhook uniquement : URL d'un 2e webhook pointant vers le salon dédié aux logs
+  webhook-url: ""
+
+  # Niveau minimum relayé : INFO, WARNING ou SEVERE
+  level: "INFO"
+
+  # Regrouper les logs et n'envoyer qu'un seul message Discord toutes les X ms
+  # (évite de spammer/de se faire rate-limit sur des serveurs très verbeux)
+  flush-interval-ms: 3000
+
+  # Ignorer les lignes de log contenant un de ces mots (anti-spam)
+  ignore-contains: []
 
 # ==============================
-#   Parametres avances
+#   Paramètres avancés
 # ==============================
-# Delai en ms entre chaque envoi de message (anti-spam Discord rate limit)
+# Délai en ms entre chaque envoi de message (anti-spam Discord rate limit)
 send-delay-ms: 100
 
 # Afficher les messages de debug dans la console
+# Active le détail des erreurs (stack trace) en cas de souci d'envoi vers Discord.
+# À activer temporairement si les messages n'arrivent pas sur Discord.
 debug: false
