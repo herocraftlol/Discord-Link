@@ -8,8 +8,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.logging.Logger;
-
 public class MiniBridge extends JavaPlugin {
 
     private static MiniBridge instance;
@@ -63,7 +61,7 @@ public class MiniBridge extends JavaPlugin {
 
             if (consoleWebhookSender != null || !getConfig().getString("console.channel-id", "").isEmpty()) {
                 consoleRelay = new ConsoleRelay(this);
-                Logger.getLogger("").addHandler(consoleRelay);
+                consoleRelay.register();
                 getLogger().info("Relais console Discord activé.");
             }
         }
@@ -79,8 +77,8 @@ public class MiniBridge extends JavaPlugin {
         sendToDiscord(getConfig().getString("messages.server-stop", "🔴 Serveur arrêté."));
 
         if (consoleRelay != null) {
-            Logger.getLogger("").removeHandler(consoleRelay);
-            consoleRelay.close();
+            consoleRelay.unregister();
+            consoleRelay.stop();
         }
         if (consoleWebhookSender != null) {
             consoleWebhookSender.shutdown();

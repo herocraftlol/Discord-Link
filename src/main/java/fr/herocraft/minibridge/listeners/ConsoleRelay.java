@@ -1,6 +1,12 @@
 package fr.herocraft.minibridge.listeners;
 
 import fr.herocraft.minibridge.MiniBridge;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -10,33 +16,34 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
 
 /**
- * Capte les logs de la console serveur (via le logger racine Java) et les relaie
- * périodiquement vers un channel Discord dédié, groupés dans un même message pour
- * respecter le rate limit Discord et éviter le spam.
+ * Capte les logs de la console serveur via Log4j2 (et non java.util.logging) : c'est
+ * le système que Paper/Spigot utilise réellement pour les logs "vanilla" (connexions,
+ * déconnexions, commandes exécutées, erreurs, etc.), contrairement aux appels
+ * getLogger() de certains plugins qui eux passent par java.util.logging.
+ * Les logs captés sont regroupés et relayés périodiquement vers un channel Discord dédié.
  */
-public class ConsoleRelay extends Handler {
+public class ConsoleRelay extends AbstractAppender {
 
     private final MiniBridge plugin;
     private final List<String> buffer = new CopyOnWriteArrayList<>();
     private final ScheduledExecutorService scheduler;
     private final Set<String> ignoreContains;
+    private final Level minLevel;
 
     public ConsoleRelay(MiniBridge plugin) {
+        super("MiniBridgeConsoleRelay", null, null, true, Property.EMPTY_ARRAY);
         this.plugin = plugin;
         this.ignoreContains = new HashSet<>(plugin.getConfig().getStringList("console.ignore-contains"));
 
-        Level minLevel;
+        Level lvl;
         try {
-            minLevel = Level.parse(plugin.getConfig().getString("console.level", "INFO"));
-        } catch (IllegalArgumentException e) {
-            minLevel = Level.INFO;
+            lvl = Level.toLevel(plugin.getConfig().getString("console.level", "INFO"));
+        } catch (Exception e) {
+            lvl = Level.INFO;
         }
-        setLevel(minLevel);
+        this.minLevel = lvl;
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "MiniBridge-ConsoleRelay");
@@ -45,23 +52,27 @@ public class ConsoleRelay extends Handler {
         });
         long intervalMs = plugin.getConfig().getLong("console.flush-interval-ms", 3000);
         scheduler.scheduleWithFixedDelay(this::flushBuffer, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+
+        start();
     }
 
     @Override
-    public void publish(LogRecord record) {
-        if (record.getLevel().intValue() < getLevel().intValue()) return;
+    public void append(LogEvent event) {
+        // En Log4j2, un intLevel plus petit = plus sévère (ERROR=200 < WARN=300 < INFO=400).
+        // On ignore tout ce qui est moins important que le seuil configuré.
+        if (event.getLevel().intLevel() > minLevel.intLevel()) return;
 
-        String message = record.getMessage();
+        String loggerName = event.getLoggerName();
+        if (loggerName != null && loggerName.contains("MiniBridge")) return;
+
+        String message = event.getMessage() != null ? event.getMessage().getFormattedMessage() : null;
         if (message == null || message.isEmpty()) return;
 
-        // Évite de relayer les propres logs du plugin (boucle infinie) et le spam configuré
-        String loggerName = record.getLoggerName();
-        if (loggerName != null && loggerName.contains("MiniBridge")) return;
         for (String ignore : ignoreContains) {
             if (ignore != null && !ignore.isEmpty() && message.contains(ignore)) return;
         }
 
-        buffer.add("[" + record.getLevel().getName() + "] " + message);
+        buffer.add("[" + event.getLevel().name() + "] " + message);
     }
 
     private void flushBuffer() {
@@ -84,14 +95,21 @@ public class ConsoleRelay extends Handler {
         plugin.sendConsoleToDiscord(sb.toString());
     }
 
-    @Override
-    public void flush() {
-        // Le flush réel est géré par le scheduler périodique (évite de spammer Discord
-        // à chaque ligne de log ; requis pour implémenter Handler).
+    /** Attache ce relais au logger racine Log4j2 (celui qui reçoit vraiment tous les logs serveur). */
+    public void register() {
+        Logger rootLogger = (Logger) LogManager.getRootLogger();
+        rootLogger.addAppender(this);
+    }
+
+    /** Détache proprement le relais (à appeler dans onDisable). */
+    public void unregister() {
+        Logger rootLogger = (Logger) LogManager.getRootLogger();
+        rootLogger.removeAppender(this);
     }
 
     @Override
-    public void close() {
+    public void stop() {
         scheduler.shutdownNow();
+        super.stop();
     }
 }
